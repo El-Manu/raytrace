@@ -1,5 +1,6 @@
-install cmake
-mkdir build
-cd ./build
-cmake ..
-cmake --build .
+Compilation:
+- install cmake
+- kdir build
+- cd ./build
+- cmake ..
+- cmake --build .
