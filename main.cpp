@@ -75,9 +75,9 @@ public:
 bool Plane::intersect(const Ray& ray, double& t) const
 {
     double skalar = ray.direction * normal;
-    return skalar;
     if(skalar && (distance - ray.startpoint * normal) / skalar >= 0)
         t = (distance - ray.startpoint * normal) / skalar;
+    return skalar;
 }
 
 class Scene
@@ -127,29 +127,29 @@ Color Scene::TraceRay(const Ray& ray) const
 int main()
 {
     //create Scene, add shapes
-    Vector cam(0, 0, -256);
-    Vector light(23, 16, 15);
+    Vector cam(0, 0, -4096);
+    Vector light(700, -416, 15);
     Scene scene(cam, light, White, Black);
 
-    Vector v(30,40,50);
-    Ball ball(v, 15, Red, 4);
+    Vector v(100,350,500);
+    Ball ball(v, 150, Red, 4);
     scene.Addshape(&ball);
 
-    Vector m(-5,-14,10);
-    Ball ball2(m, 30, Green, 4);
+    Vector m(-200, 14,400);
+    Ball ball2(m, 60, Green, 4);
     scene.Addshape(&ball2);
 
     Vector n(0, 1, 0);
     Plane plane(n, -30, Blue, 4);
     scene.Addshape(&plane);
 
-    Bitmap bitmap (512, 512);
+    Bitmap bitmap (1024, 1024);
 
-	for (unsigned y = 0; y != bitmap.GetHeight (); ++y)
+	for (int y = 0; y != bitmap.GetHeight(); ++y)
 	{
-		for (unsigned x = 0; x != bitmap.GetWidth (); ++x)
+		for (int x = 0; x != bitmap.GetWidth(); ++x)
         {
-            Vector v(x - 256, y - 256, 0);
+            Vector v(x - (int)bitmap.GetWidth() / 2, (int)bitmap.GetHeight() / 2 - y, 0);
             Ray ray(scene.cam, v);
             bitmap (x, y) = scene.TraceRay(ray);
         }
