@@ -1,6 +1,6 @@
 Compilation:
 - install cmake
-- kdir build
+- mkdir build
 - cd ./build
 - cmake ..
 - cmake --build .
