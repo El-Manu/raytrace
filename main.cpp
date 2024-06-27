@@ -49,13 +49,24 @@ bool Ball::intersect(const Ray& ray, double& t) const
 {
     Vector v = ray.startpoint - middle;
     double det = v * ray.direction * v * ray.direction - v * v + radius * radius;
-    if(det >= 0)
+    if(det < 0)
     {
-        t = -v * ray.direction - sqrt(det);
-        if(t < 0)
-            t += 2 * sqrt(det);
+        return false;
     }
-    return det >= 0;
+    double root = sqrt(det);
+    double t1 = -v * ray.direction - root;
+    double t2 = t1 + 2* root;
+    if(t1 < 0){
+        if(t2 < 0) return false;
+        t = t2;
+        return true;
+    }
+    if(t2 < 0){
+        t = t1;
+        return true;
+    }
+    t = std::min(t1, t2);
+    return true;
 }
 
 class Plane : public Shape
@@ -75,9 +86,8 @@ public:
 bool Plane::intersect(const Ray& ray, double& t) const
 {
     double skalar = ray.direction * normal;
-    if(skalar && (distance - ray.startpoint * normal) / skalar >= 0)
-        t = (distance - ray.startpoint * normal) / skalar;
-    return skalar;
+    t = (distance - ray.startpoint * normal) / skalar;
+    return skalar && t > 0;
 }
 
 class Scene
@@ -108,19 +118,54 @@ Color Scene::TraceRay(const Ray& ray) const
 {
     double t = 30000;
     double h = 30000;
-    Color color = backGround;
+    
     //First object in the way
+    Shape* shape = NULL;
     for(unsigned i = 0; i < shapes.size(); ++i)
     {
-        if((*shapes[i]).intersect(ray, h))
-            if(h < t)
+        if(shapes[i]->intersect(ray, t))
+            if(t < h)
             {
-                t = h;
-                color = (*shapes[i]).color;
+                h = t;
+                shape = shapes[i];
             }
     }
-    //lightsource, shadow
-    //reflection
+    if(shape == NULL)
+    {
+        return backGround;
+    }
+    // ambient
+    Color color = shape->color;
+    
+    Vector intersect = ray.startpoint + h * ray.direction;
+    Vector normal = Normalize(shape->getNormal(intersect));
+    Ray reflectionRay = Ray(intersect, Vector());
+    reflectionRay.direction = Normalize(ray.direction -2 * (ray.direction * normal) * normal);
+    reflectionRay.startpoint += 0.5 * reflectionRay.direction;
+
+    // lightsource, shadow
+    Ray shadowRay(intersect, lightSource);
+    shadowRay.startpoint += 0.5 * shadowRay.direction;
+    bool shade = false;
+
+    for (unsigned i = 0; i < shapes.size(); ++i)
+    {
+        h = 30000;
+        if (shapes[i]->intersect(shadowRay, h) && h > 0)
+        {
+            shade = true;
+            break;
+        }
+    }
+    if (!shade)
+    {
+        // difuse
+        color += normal * shadowRay.direction * shape->color * lightColor;
+        //specular
+        color += std::pow(shadowRay.direction * reflectionRay.direction, 8) * lightColor * shape->color;
+    }
+    // reflection
+
     return color;
 }
 
@@ -128,19 +173,19 @@ int main()
 {
     //create Scene, add shapes
     Vector cam(0, 0, -4096);
-    Vector light(700, -416, 15);
+    Vector light(-200, 800, 300);
     Scene scene(cam, light, White, Black);
 
     Vector v(100,350,500);
-    Ball ball(v, 150, Red, 4);
+    Ball ball(v, 150, 0.3 * Red, 4);
     scene.Addshape(&ball);
 
     Vector m(-200, 14,400);
-    Ball ball2(m, 60, Green, 4);
+    Ball ball2(m, 60, 0.5 * Green, 4);
     scene.Addshape(&ball2);
 
     Vector n(0, 1, 0);
-    Plane plane(n, -30, Blue, 4);
+    Plane plane(n, -30, 0.2 * Blue, 4);
     scene.Addshape(&plane);
 
     Bitmap bitmap (1024, 1024);
@@ -151,7 +196,7 @@ int main()
         {
             Vector v(x - (int)bitmap.GetWidth() / 2, (int)bitmap.GetHeight() / 2 - y, 0);
             Ray ray(scene.cam, v);
-            bitmap (x, y) = scene.TraceRay(ray);
+            bitmap (x, y) = AdjustColor(scene.TraceRay(ray));
         }
 	}
 
